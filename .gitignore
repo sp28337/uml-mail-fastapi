@@ -1,41 +1,65 @@
 # Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
 .Python
-env/
-.venv/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
 venv/
-pip-log.txt
-pip-delete-this-directory.txt
+ENV/
+env/
+.venv
 
-# Editor/OS Specific
-.vscode/ # VS Code specific files (e.g., settings, launch configurations)
-.idea/ # IntelliJ IDEA specific files
-.DS_Store # macOS specific files
-Thumbs.db # Windows specific files
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
 
-# Logs and temporary files
+# Environment variables (НИКОГДА не коммитить!)
+.env
+.env.local
+.env.*.local
+
+# Логи
 *.log
+app.log
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Temporary files
 *.tmp
 *.bak
+*.orig
 
-# Environment variables and secrets
-.env
-.env.*
-secrets.toml
-config.ini
+# OS
+Thumbs.db
+.DS_Store
 
-# Database files (if using local SQLite or similar)
-*.db
-*.sqlite3
-
-# Build artifacts (if any frontend is integrated)
-dist/
-build/
-
-# Other potential files to ignore
-.pytest_cache/
-htmlcov/
-.coverage
+# Uvicorn
+.uvicorn_reload/
