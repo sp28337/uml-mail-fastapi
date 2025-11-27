@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+.venv/
+venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Editor/OS Specific
+.vscode/ # VS Code specific files (e.g., settings, launch configurations)
+.idea/ # IntelliJ IDEA specific files
+.DS_Store # macOS specific files
+Thumbs.db # Windows specific files
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+
+# Environment variables and secrets
+.env
+.env.*
+secrets.toml
+config.ini
+
+# Database files (if using local SQLite or similar)
+*.db
+*.sqlite3
+
+# Build artifacts (if any frontend is integrated)
+dist/
+build/
+
+# Other potential files to ignore
+.pytest_cache/
+htmlcov/
+.coverage
