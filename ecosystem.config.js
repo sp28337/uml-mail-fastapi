@@ -3,7 +3,7 @@ module.exports = {
     {
       name: 'uml-mail-fastapi',
       script: 'main.py',
-      interpreter: 'python',
+      interpreter: './.venv/bin/python',
       instances: 1,
       exec_mode: 'fork',
       env: {
