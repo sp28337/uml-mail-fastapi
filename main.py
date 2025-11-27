@@ -32,6 +32,7 @@ CORS_FRONTEND_URL = os.getenv("CORS_FRONTEND_URL", "")
 CORS_FRONTEND_URL_2 = os.getenv("CORS_FRONTEND_URL_2", "")
 CORS_SECONDARY_URL = os.getenv("CORS_SECONDARY_URL", "")
 CORS_SECONDARY_URL_2 = os.getenv("CORS_SECONDARY_URL_2", "")
+CORS_DEV_URL = os.getenv("CORS_DEV_URL", "")
 
 allowed_origins = [
     "http://localhost:5173",
@@ -41,6 +42,7 @@ allowed_origins = [
     CORS_FRONTEND_URL_2,
     CORS_SECONDARY_URL,
     CORS_SECONDARY_URL_2,
+    CORS_DEV_URL,
 ]
 
 
