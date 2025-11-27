@@ -2,16 +2,18 @@ import os
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
-
+from pathlib import Path
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import aiosmtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from dotenv import load_dotenv
 
-load_dotenv()
+
+env_path = Path(__file__).parent / ".env"
+load_dotenv(dotenv_path=env_path)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -21,13 +23,25 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 SMTP_HOST = os.getenv("SMTP_HOST")
-SMTP_PORT = int(os.getenv("SMTP_PORT"))
+SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 EMAIL_USER = os.getenv("EMAIL_USER")
 EMAIL_PASS = os.getenv("EMAIL_PASS")
 ADMIN_MAIL = os.getenv("ADMIN_MAIL")
 PORT = int(os.getenv("PORT", 3030))
-CORS_FRONTEND = os.getenv("CORS_FRONTEND_URL")
-CORS_LOCALHOST = os.getenv("CORS_LOCALHOST_FRONTEND_URL")
+CORS_FRONTEND_URL = os.getenv("CORS_FRONTEND_URL", "")
+CORS_FRONTEND_URL_2 = os.getenv("CORS_FRONTEND_URL_2", "")
+CORS_SECONDARY_URL = os.getenv("CORS_SECONDARY_URL", "")
+CORS_SECONDARY_URL_2 = os.getenv("CORS_SECONDARY_URL_2", "")
+
+allowed_origins = [
+    "http://localhost:5173",
+    "http://localhost:3001",
+    "http://localhost:3000",
+    CORS_FRONTEND_URL,
+    CORS_FRONTEND_URL_2,
+    CORS_SECONDARY_URL,
+    CORS_SECONDARY_URL_2,
+]
 
 
 class ContactRequest(BaseModel):
@@ -37,10 +51,16 @@ class ContactRequest(BaseModel):
 
 async def send_email(to_email: str, name: str, phone: str) -> bool:
     try:
-        smtp = aiosmtplib.SMTP(hostname=SMTP_HOST, port=SMTP_PORT, timeout=10)
+        if SMTP_PORT == 465:
+            smtp = aiosmtplib.SMTP(
+                hostname=SMTP_HOST, port=SMTP_PORT, use_tls=True, timeout=10
+            )
+        else:
+            smtp = aiosmtplib.SMTP(hostname=SMTP_HOST, port=SMTP_PORT, timeout=10)
+
         await smtp.connect()
 
-        if SMTP_PORT == 465:
+        if SMTP_PORT != 465:
             await smtp.starttls()
 
         await smtp.login(EMAIL_USER, EMAIL_PASS)
@@ -83,7 +103,7 @@ app = FastAPI(title="Military API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[CORS_FRONTEND, CORS_LOCALHOST],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
