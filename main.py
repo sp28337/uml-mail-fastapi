@@ -37,7 +37,7 @@ CORS_DEV_URL = os.getenv("CORS_DEV_URL", "")
 allowed_origins = [
     "http://localhost:5173",
     "http://localhost:3001",
-    "http://localhost:3000",
+    "http://localhost:3030",
     CORS_FRONTEND_URL,
     CORS_FRONTEND_URL_2,
     CORS_SECONDARY_URL,
