@@ -10,7 +10,14 @@ from pydantic import BaseModel
 import aiosmtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-
+import httpx
+import asyncio
+from alarm_bot import (
+    send_telegram_message,
+    notify_error,
+    notify_success,
+    telegram_polling_task,
+)
 
 env_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=env_path)
@@ -33,6 +40,7 @@ CORS_FRONTEND_URL_2 = os.getenv("CORS_FRONTEND_URL_2", "")
 CORS_SECONDARY_URL = os.getenv("CORS_SECONDARY_URL", "")
 CORS_SECONDARY_URL_2 = os.getenv("CORS_SECONDARY_URL_2", "")
 CORS_DEV_URL = os.getenv("CORS_DEV_URL", "")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
 allowed_origins = [
     "http://localhost:5173",
@@ -52,6 +60,10 @@ class ContactRequest(BaseModel):
 
 
 async def send_email(to_email: str, name: str, phone: str) -> bool:
+    """
+    Отправляет письмо на указанный адрес.
+    Если произойдет ошибка, отправляет уведомление в Telegram.
+    """
     try:
         if SMTP_PORT == 465:
             smtp = aiosmtplib.SMTP(
@@ -87,21 +99,39 @@ async def send_email(to_email: str, name: str, phone: str) -> bool:
         await smtp.send_message(message)
         await smtp.quit()
 
-        logger.info(f"Письмо отправлено на {to_email}")
+        logger.info(f"✅ Письмо отправлено на {to_email}")
         return True
     except Exception as e:
-        logger.error(f"Ошибка отправки: {e}")
+        error_msg = str(e)
+        logger.error(f"❌ Ошибка отправки письма: {error_msg}")
+
+        # Отправляем уведомление об ошибке в Telegram
+        await notify_error(
+            error_type="EMAIL_SEND_ERROR",
+            error_details=error_msg,
+            name=name,
+            phone=phone,
+        )
         return False
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("🚀 Приложение запущено")
+    await send_telegram_message("<b>🚀 Приложение запущено</b>")
+
+    # Запускаем Telegram polling в фоне
+    polling_task = asyncio.create_task(telegram_polling_task())
+
     yield
+
+    # Остановка polling при выключении
+    polling_task.cancel()
     logger.info("🛑 Приложение остановлено")
+    await send_telegram_message("<b>🛑 Приложение остановлено</b>")
 
 
-app = FastAPI(title="Military API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="uml-mail", version="1.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -124,23 +154,76 @@ async def health():
 
 @app.post("/api/contact")
 async def contact(request: ContactRequest):
-    if not request.name or not request.phone:
-        raise HTTPException(status_code=400, detail="Заполните все поля")
+    """
+    Обработчик заявок с полной обработкой ошибок и уведомлениями.
+    """
+    try:
+        # ========== ВАЛИДАЦИЯ ==========
+        if not request.name or not request.phone:
+            error_detail = "Не заполнены все поля"
+            logger.warning(f"⚠️ Ошибка валидации: {error_detail}")
+            await notify_error(
+                error_type="VALIDATION_ERROR",
+                error_details=error_detail,
+                name=request.name,
+                phone=request.phone,
+            )
+            raise HTTPException(status_code=400, detail=error_detail)
 
-    if len(request.name) < 2:
-        raise HTTPException(status_code=400, detail="Имя слишком короткое")
+        if len(request.name) < 2:
+            error_detail = "Имя слишком короткое (минимум 2 символа)"
+            logger.warning(f"⚠️ Ошибка валидации: {error_detail}")
+            await notify_error(
+                error_type="VALIDATION_ERROR",
+                error_details=error_detail,
+                name=request.name,
+                phone=request.phone,
+            )
+            raise HTTPException(status_code=400, detail=error_detail)
 
-    if len(request.phone) < 10:
-        raise HTTPException(status_code=400, detail="Телефон слишком короткий")
+        if len(request.phone) < 10:
+            error_detail = "Телефон слишком короткий (минимум 10 цифр)"
+            logger.warning(f"⚠️ Ошибка валидации: {error_detail}")
+            await notify_error(
+                error_type="VALIDATION_ERROR",
+                error_details=error_detail,
+                name=request.name,
+                phone=request.phone,
+            )
+            raise HTTPException(status_code=400, detail=error_detail)
 
-    logger.info(f"Заявка: {request.name} ({request.phone})")
+        logger.info(f"📋 Новая заявка: {request.name} ({request.phone})")
 
-    result = await send_email(ADMIN_MAIL, request.name, request.phone)
+        # ========== ОТПРАВКА ПИСЬМА ==========
+        result = await send_email(ADMIN_MAIL, request.name, request.phone)
 
-    if not result:
-        raise HTTPException(status_code=500, detail="Ошибка отправки")
+        if not result:
+            error_detail = "Не удалось отправить письмо на email"
+            raise HTTPException(status_code=500, detail=error_detail)
 
-    return {"success": True, "message": "Заявка отправлена"}
+        # ========== УСПЕХ ==========
+        await notify_success(request.name, request.phone)
+
+        return {
+            "success": True,
+            "message": "Заявка отправлена",
+            "data": {"name": request.name, "phone": request.phone},
+        }
+
+    except HTTPException:
+        # HTTPException уже имеет обработку ошибок выше
+        raise
+    except Exception as e:
+        # Непредвиденная ошибка
+        error_msg = str(e)
+        logger.error(f"❌ Непредвиденная ошибка: {error_msg}", exc_info=True)
+        await notify_error(
+            error_type="UNEXPECTED_ERROR",
+            error_details=error_msg,
+            name=request.name,
+            phone=request.phone,
+        )
+        raise HTTPException(status_code=500, detail="Неизвестная ошибка сервера")
 
 
 if __name__ == "__main__":
